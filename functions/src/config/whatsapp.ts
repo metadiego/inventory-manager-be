@@ -1,0 +1,3 @@
+export const WHATSAPP_CONFIG = {
+  PRIMARY_CONTACT: '+34635235632',
+};
