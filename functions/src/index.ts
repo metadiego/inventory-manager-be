@@ -11,12 +11,16 @@ import {
   NewSupplier,
   NewOrder,
   OrderEmail,
+  NewRecipe,
 } from './types';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { OrdersService } from './services/orders';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { InventoryMonitoringService } from './services/inventory-monitoring';
 import { EmailService } from './services/email';
+import { SalesService } from './services/sales';
+import { subHours, formatISO } from 'date-fns';
+// import { SquareService } from './services/square';
 
 // Initialize services
 if (!admin.apps.length) {
@@ -28,16 +32,28 @@ if (!admin.apps.length) {
 const firestoreService = new FirestoreService();
 const ordersService = new OrdersService();
 const emailService = new EmailService();
+const salesService = new SalesService();
 
+/**
+ * Inventory monitoring service.
+ * Checks for outdated inventory items and sends WhatsApp notifications.
+ */
 const inventoryMonitoringService = new InventoryMonitoringService(
   firestoreService,
   emailService
 );
 
+/** **************************************************************************
+ * INVENTORY functions.
+ *************************************************************************** */
+
+/**
+ * HTTP function to get a single inventory item by ID.
+ */
 export const getInventoryItem = onCall(async (request) => {
   try {
     const { itemId } = request.data;
-    const item = await firestoreService.getInventoryItem(itemId);
+    const item = await firestoreService.getInventoryDoc(itemId);
     return { success: true, data: item };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -52,7 +68,7 @@ export const getItemHistory = onCall(async (request) => {
       throw new Error('Item ID is required');
     }
 
-    const history = await firestoreService.getItemHistory(itemId);
+    const history = await firestoreService.getInventoryDocHistory(itemId);
     return { success: true, data: history };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -60,10 +76,13 @@ export const getItemHistory = onCall(async (request) => {
   }
 });
 
+/**
+ * HTTP function to add a new inventory item.
+ */
 export const addInventoryItem = onCall(async (request) => {
   try {
     const item = request.data as Omit<InventoryItem, 'id'>;
-    const newItem = await firestoreService.addInventoryItem(item);
+    const newItem = await firestoreService.addInventoryDoc(item);
     return { success: true, data: newItem };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -71,10 +90,13 @@ export const addInventoryItem = onCall(async (request) => {
   }
 });
 
+/**
+ * HTTP function to remove an inventory item by ID.
+ */
 export const removeInventoryItem = onCall(async (request) => {
   try {
     const { id } = request.data;
-    await firestoreService.removeInventoryItem(id);
+    await firestoreService.removeInventoryDoc(id);
     return { success: true, data: { id } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -82,10 +104,13 @@ export const removeInventoryItem = onCall(async (request) => {
   }
 });
 
+/**
+ * HTTP function to update an inventory item by ID.
+ */
 export const updateInventoryItem = onCall(async (request) => {
   try {
     const { id, updateData } = request.data;
-    await firestoreService.updateInventoryItem(id, updateData);
+    await firestoreService.updateInventoryDoc(id, updateData);
     return { success: true, data: { id } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -93,9 +118,12 @@ export const updateInventoryItem = onCall(async (request) => {
   }
 });
 
+/**
+ * HTTP function to get all inventory items.
+ */
 export const getInventory = onCall(async () => {
   try {
-    const items = await firestoreService.getInventory();
+    const items = await firestoreService.getAllInventoryDocs();
     return { success: true, data: items };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -103,6 +131,9 @@ export const getInventory = onCall(async () => {
   }
 });
 
+/**
+ * HTTP function to take inventory.
+ */
 export const takeInventory = onCall(async (request) => {
   try {
     const takeInventoryData: Omit<TakeInventory, 'id'> = {
@@ -110,13 +141,13 @@ export const takeInventory = onCall(async (request) => {
       items: request.data.items,
     };
 
-    const newTakeInventory = await firestoreService.addTakeInventory(
+    const newTakeInventory = await firestoreService.addTakeInventoryDoc(
       takeInventoryData
     );
 
     // Update current quantities using the correct item ID
     for (const item of takeInventoryData.items) {
-      await firestoreService.updateInventoryItem(item.id, {
+      await firestoreService.updateInventoryDoc(item.id, {
         currentQuantity: item.quantity,
         lastUpdated: takeInventoryData.timestamp,
       });
@@ -129,9 +160,12 @@ export const takeInventory = onCall(async (request) => {
   }
 });
 
+/**
+ * HTTP function to get all inventory history.
+ */
 export const getInventoryHistory = onCall(async () => {
   try {
-    const history = await firestoreService.getTakeInventoryHistory();
+    const history = await firestoreService.getAllTakeInventoryDocs();
     return { success: true, data: history };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -153,12 +187,30 @@ export const checkInventory = onCall(async () => {
   }
 });
 
+/** **************************************************************************
+ * SUPPLIERS functions.
+ *************************************************************************** */
+
+/**
+ * HTTP function to get a single supplier by ID.
+ */
+export const getSupplier = onCall(async (request) => {
+  try {
+    const { supplierId } = request.data;
+    const supplier = await firestoreService.getSupplierDoc(supplierId);
+    return { success: true, data: supplier };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
 /**
  * HTTP function to get all suppliers.
  */
 export const getSuppliers = onCall(async () => {
   try {
-    const suppliers = await firestoreService.getSuppliers();
+    const suppliers = await firestoreService.getAllSupplierDocs();
     return { success: true, data: suppliers };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -183,27 +235,57 @@ export const addSupplier = onCall(async (request) => {
       throw new Error('Dispatch time must be a positive number');
     }
 
-    if (!supplierData.contactMethod || !supplierData.contactMethod.type) {
-      throw new Error('Contact method type is required');
-    }
-
-    if (supplierData.contactMethod.type === 'email') {
-      if (!supplierData.contactMethod.emails ||
-          !supplierData.contactMethod.emails.length ||
-          !supplierData.contactMethod.emails[0].trim()) {
-        throw new Error('At least one email address is required');
+    // Contact method is optional, but if it is provided, it must be valid
+    if (supplierData.contactMethod) {
+      if (!supplierData.contactMethod.type) {
+        throw new Error('Contact method type is required');
       }
-    }
 
-    if (supplierData.contactMethod.type === 'phone') {
-      if (!supplierData.contactMethod.phone ||
+      if (supplierData.contactMethod.type === 'email') {
+        if (!supplierData.contactMethod.emails ||
+            !supplierData.contactMethod.emails.length ||
+            !supplierData.contactMethod.emails[0].trim()) {
+          throw new Error('At least one email address is required');
+        }
+      }
+
+      if (supplierData.contactMethod.type === 'phone') {
+        if (!supplierData.contactMethod.phone ||
           !supplierData.contactMethod.phone.trim()) {
-        throw new Error('Phone number is required');
+          throw new Error('Phone number is required');
+        }
       }
     }
 
-    const newSupplier = await firestoreService.addSupplier(supplierData);
+    const newSupplier = await firestoreService.addSupplierDoc(supplierData);
     return { success: true, data: newSupplier };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/** **************************************************************************
+ * ORDERS functions.
+ *************************************************************************** */
+
+
+/**
+ * HTTP function to get a single order by id.
+ */
+export const getOrder = onCall(async (request) => {
+  try {
+    const { orderId } = request.data;
+    if (!orderId) {
+      throw new Error('Order ID is required');
+    }
+
+    const order = await firestoreService.getOrderDoc(orderId);
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    return { success: true, data: order };
   } catch (error) {
     const httpsError = errorHandler(error);
     throw new Error(httpsError.message);
@@ -215,7 +297,7 @@ export const addSupplier = onCall(async (request) => {
  */
 export const getOrders = onCall(async () => {
   try {
-    const orders = await firestoreService.getOrders();
+    const orders = await firestoreService.getAllOrderDocs();
     return { success: true, data: orders };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -229,7 +311,21 @@ export const getOrders = onCall(async () => {
 export const getOrdersByStatus = onCall(async (request) => {
   try {
     const { orderStatus } = request.data;
-    const orders = await firestoreService.getOrdersByStatus(orderStatus);
+    const orders = await firestoreService.getOrderDocsByStatus(orderStatus);
+    return { success: true, data: orders };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/**
+ * HTTP function to get all orders by item ID.
+ */
+export const getOrdersByItemId = onCall(async (request) => {
+  try {
+    const { itemId } = request.data;
+    const orders = await firestoreService.getOrderDocsByItemId(itemId);
     return { success: true, data: orders };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -257,29 +353,7 @@ export const createOrder = onCall(async (request) => {
       throw new Error('Expected delivery date is required');
     }
 
-    const order = await firestoreService.createOrder(orderData);
-    return { success: true, data: order };
-  } catch (error) {
-    const httpsError = errorHandler(error);
-    throw new Error(httpsError.message);
-  }
-});
-
-/**
- * HTTP function to get a single order by id.
- */
-export const getOrder = onCall(async (request) => {
-  try {
-    const { orderId } = request.data;
-    if (!orderId) {
-      throw new Error('Order ID is required');
-    }
-
-    const order = await firestoreService.getOrder(orderId);
-    if (!order) {
-      throw new Error('Order not found');
-    }
-
+    const order = await firestoreService.addOrderDoc(orderData);
     return { success: true, data: order };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -320,6 +394,27 @@ export const sendOrder = onCall(async (request) => {
 });
 
 /**
+ * HTTP function to update the status of an order.
+ */
+export const updateOrderStatus = onCall(async (request) => {
+  try {
+    const { orderId, status } = request.data;
+
+    // Order status can not be updated to 'delivered'
+    // Delivery should be recorded using the recordOrderDelivery function.
+    if (status === 'delivered') {
+      throw new Error('Order status can not be updated to delivered');
+    }
+
+    await firestoreService.updateOrderDocStatus(orderId, status);
+    return { success: true, data: { id: orderId } };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/**
  * HTTP function to record the delivery of an order.
  */
 export const recordOrderDelivery = onCall(async (request) => {
@@ -332,6 +427,10 @@ export const recordOrderDelivery = onCall(async (request) => {
     throw new Error(httpsError.message);
   }
 });
+
+/** **************************************************************************
+ * EMAILS functions.
+ *************************************************************************** */
 
 /**
  * Firebase Function triggered when an email document is created or updated.
@@ -348,7 +447,7 @@ export const onEmailDeliveryStatusUpdate = onDocumentWritten(
       const email = await firestoreService.getEmail(event.params.emailId);
       if (email?.delivery?.state === 'SUCCESS' &&
         (email as OrderEmail).orderId) {
-        await firestoreService.updateOrderStatus(
+        await firestoreService.updateOrderDocStatus(
           (email as OrderEmail).orderId, 'confirmed'
         );
       }
@@ -377,6 +476,102 @@ export const checkInventoryUpdateFrequency = onSchedule({
     await inventoryMonitoringService.checkOutdatedItems();
   } catch (error) {
     console.error('Error in checkInventoryUpdateFrequency:', error);
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+
+export const processSales = onCall(async () => {
+  try {
+    const now = new Date();
+    const endAt = formatISO(now);
+    const startAt = formatISO(subHours(now, 4));
+
+    await salesService.processSales(startAt, endAt);
+  } catch (error) {
+    console.error('Error in processHourlySales:', error);
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/**
+ * Scheduled function that runs hourly to fetch and process sales data
+ * from Square API
+ */
+// export const processHourlySales = onSchedule({
+//   schedule: '0 * * * *', // Runs at the start of every hour
+//   timeZone: 'America/New_York',
+// }, async () => {
+//   try {
+//     const now = new Date();
+//     const endAt = formatISO(now);
+//     const startAt = formatISO(subHours(now, 1));
+
+//     await salesService.processSales(startAt, endAt);
+//   } catch (error) {
+//     console.error('Error in processHourlySales:', error);
+//     const httpsError = errorHandler(error);
+//     throw new Error(httpsError.message);
+//   }
+// });
+
+export const getRecipes = onCall(async () => {
+  try {
+    const recipes = await firestoreService.getAllRecipeDocs();
+    return { success: true, data: recipes };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+export const createRecipe = onCall(async (request) => {
+  try {
+    const recipeData = request.data as NewRecipe;
+
+    // Validate the input
+    if (!recipeData.name || recipeData.name.trim() === '') {
+      throw new Error('Recipe name is required');
+    }
+
+    if (!recipeData.type) {
+      throw new Error('Recipe type is required');
+    }
+
+    if (!recipeData.ingredients || recipeData.ingredients.length === 0) {
+      throw new Error('Recipe must have at least one ingredient');
+    }
+
+    // Validate each ingredient
+    for (const ingredient of recipeData.ingredients) {
+      if (!ingredient.id) {
+        throw new Error('Each ingredient must have an ID');
+      }
+      if (ingredient.quantity <= 0) {
+        throw new Error('Ingredient quantities must be greater than 0');
+      }
+    }
+
+    const recipe = await firestoreService.addRecipeDoc(recipeData);
+    return { success: true, data: recipe };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+export const getRecipe = onCall(async (request) => {
+  try {
+    const { recipeId } = request.data;
+    if (!recipeId) {
+      throw new Error('Recipe ID is required');
+    }
+
+    const recipe = await firestoreService.getRecipeDoc(recipeId);
+    return { success: true, data: recipe };
+  } catch (error) {
     const httpsError = errorHandler(error);
     throw new Error(httpsError.message);
   }

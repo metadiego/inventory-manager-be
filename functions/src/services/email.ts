@@ -87,7 +87,7 @@ export class EmailService {
    */
   async createEmail(emailData: Omit<EmailData, 'id' | 'delivery'>):
     Promise<string> {
-    const emailDoc = await this.firestoreService.createEmail({
+    const emailDoc = await this.firestoreService.addEmailDoc({
       ...emailData,
     });
 
@@ -105,8 +105,10 @@ export class EmailService {
    * @throws {Error} If the supplier does not have a valid email contact method
    */
   async createOrderEmail(order: Order): Promise<string> {
-    const supplier = await this.firestoreService.getSupplier(order.supplierId);
-    if (!supplier || supplier.contactMethod.type !== 'email' ||
+    const supplier =
+      await this.firestoreService.getSupplierDoc(order.supplierId);
+    if (!supplier || !supplier.contactMethod ||
+      supplier.contactMethod.type !== 'email' ||
       !supplier.contactMethod.emails?.length) {
       throw new Error('Supplier does not have email contact method');
     }

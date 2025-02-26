@@ -41,7 +41,7 @@ export class InventoryMonitoringService {
   async checkOutdatedItems(): Promise<void> {
     try {
       // Get all inventory items
-      const items = await this.firestoreService.getInventory();
+      const items = await this.firestoreService.getAllInventoryDocs();
 
       // Filter out items that have not been updated or have no
       // update frequency.

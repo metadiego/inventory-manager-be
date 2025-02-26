@@ -34,7 +34,7 @@ export interface Supplier {
     sunday: boolean;
   }
   dispatchTime: number; // in days
-  contactMethod: {
+  contactMethod?: {
     type: 'email' | 'phone';
     emails: string[];
     phone: string;
@@ -62,6 +62,7 @@ export interface InventoryItem {
     weekly: number;
     monthly: number;
   };
+  cost?: number; // Cost per unit
 }
 
 export interface ReceivedItem {
@@ -154,5 +155,58 @@ export interface OrderWhatsapp {
   status: 'pending' | 'sent' | 'failed';
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Modifier {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface Sale {
+  itemId: string;
+  itemName: string;
+  orderId: string;
+  orderDate: string;
+  quantity: number;
+  price: number;
+  grossSales: number;
+  modifiers: Modifier[];
+}
+
+export type RecipeType = 'dish' | 'preparation';
+
+export interface RecipeIngredient {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  currentCost: number;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  type: RecipeType;
+  ingredients: RecipeIngredient[];
+  quantityProduced: {
+    value: number;
+    unit: ItemUnit;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NewRecipe = Omit<
+  Recipe,
+  'id' | 'createdAt' | 'updatedAt'
+>;
+
+export type InventoryHistoryType = 'tookInventory' | 'receivedOrder';
+
+export interface InventoryHistoryRecord {
+  date: string;
+  amount: number;
+  type: InventoryHistoryType;
 }
 
