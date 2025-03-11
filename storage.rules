@@ -6,7 +6,17 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      allow read, write: if false;
+      // Allow read access to all files
+      allow read: if true;
+      
+      // Allow write access to specific folders
+      match /inventory-images/{imageId} {
+        allow write: if true;
+      }
+      
+      match /recipe-images/{imageId} {
+        allow write: if true;
+      }
     }
   }
 }

@@ -19,6 +19,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { InventoryMonitoringService } from './services/inventory-monitoring';
 import { EmailService } from './services/email';
 import { SalesService } from './services/sales';
+import { StorageService } from './services/storage';
 import { subHours, formatISO } from 'date-fns';
 // import { SquareService } from './services/square';
 
@@ -26,6 +27,7 @@ import { subHours, formatISO } from 'date-fns';
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.applicationDefault(),
+    storageBucket: 'inventory-manager-be.appspot.com',
   });
 }
 
@@ -33,6 +35,7 @@ const firestoreService = new FirestoreService();
 const ordersService = new OrdersService();
 const emailService = new EmailService();
 const salesService = new SalesService();
+const storageService = new StorageService();
 
 /**
  * Inventory monitoring service.
@@ -517,6 +520,10 @@ export const processSales = onCall(async () => {
 //   }
 // });
 
+/** **************************************************************************
+ * RECIPES functions.
+ *************************************************************************** */
+
 export const getRecipes = onCall(async () => {
   try {
     const recipes = await firestoreService.getAllRecipeDocs();
@@ -564,13 +571,90 @@ export const createRecipe = onCall(async (request) => {
 
 export const getRecipe = onCall(async (request) => {
   try {
-    const { recipeId } = request.data;
-    if (!recipeId) {
+    const { id } = request.data;
+    if (!id) {
       throw new Error('Recipe ID is required');
     }
 
-    const recipe = await firestoreService.getRecipeDoc(recipeId);
+    const recipe = await firestoreService.getRecipeDoc(id);
     return { success: true, data: recipe };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/** **************************************************************************
+ * STORAGE functions.
+ *************************************************************************** */
+
+/**
+ * HTTP function to generate a signed URL for uploading an image.
+ */
+export const getImageUploadUrl = onCall(async (request) => {
+  try {
+    const {folderPath, fileName, contentType} = request.data;
+
+    // Validate input
+    if (!folderPath || !fileName || !contentType) {
+      throw new Error('Missing required parameters');
+    }
+
+    // Only allow uploads to specific folders
+    const allowedFolders = ['inventory-images', 'recipe-images'];
+    if (!allowedFolders.includes(folderPath)) {
+      throw new Error(`Upload to ${folderPath} is not allowed`);
+    }
+
+    const result = await storageService.generateUploadUrl(
+      folderPath,
+      fileName,
+      contentType
+    );
+
+    return {success: true, data: result};
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/**
+ * HTTP function to get a download URL for an image.
+ */
+export const getImageDownloadUrl = onCall(async (request) => {
+  try {
+    const {filePath} = request.data;
+
+    // Validate input
+    if (!filePath) {
+      throw new Error('Missing required parameter: filePath');
+    }
+
+    const url = await storageService.generateDownloadUrl(filePath);
+
+    return {success: true, data: {url}};
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/**
+ * HTTP function to delete an image.
+ */
+export const deleteImage = onCall(async (request) => {
+  try {
+    const {filePath} = request.data;
+
+    // Validate input
+    if (!filePath) {
+      throw new Error('Missing required parameter: filePath');
+    }
+
+    await storageService.deleteFile(filePath);
+
+    return {success: true, data: {message: 'File deleted successfully'}};
   } catch (error) {
     const httpsError = errorHandler(error);
     throw new Error(httpsError.message);
