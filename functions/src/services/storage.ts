@@ -1,20 +1,24 @@
 import * as admin from 'firebase-admin';
+import { Bucket } from '@google-cloud/storage';
 import { v4 as uuidv4 } from 'uuid';
+
+interface SignedUploadUrlResponse {
+  url: string;
+  filePath: string;
+  fields?: Record<string, string>;
+}
 
 /**
  * Service class for Firebase Storage operations
  */
 export class StorageService {
-  private storage: admin.storage.Storage;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private bucket: any; // Using any temporarily due to type issues
+  private bucket: Bucket;
 
   /**
    * Class constructor.
    */
   constructor() {
-    this.storage = admin.storage();
-    this.bucket = this.storage.bucket();
+    this.bucket = admin.storage().bucket();
   }
 
   /**
@@ -23,62 +27,71 @@ export class StorageService {
    * @param {string} fileName - The name of the file.
    * @param {string} contentType - The content type of the file.
    * @param {number} expirationMinutes - URL expiration time in minutes.
-   * @return {Promise<{url: string, filePath: string}>} - URL and path.
+   * @return {Promise<SignedUploadUrlResponse>} - URL and path.
    */
   async generateUploadUrl(
     folderPath: string,
     fileName: string,
     contentType: string,
     expirationMinutes = 15
-  ): Promise<{url: string; filePath: string}> {
-    // Generate a unique file name to prevent collisions
-    const uniqueFileName = `${Date.now()}_${uuidv4()}_${fileName}`;
-    const filePath = `${folderPath}/${uniqueFileName}`;
-    const file = this.bucket.file(filePath);
+  ): Promise<SignedUploadUrlResponse> {
+    try {
+      // Generate a unique file name to prevent collisions
+      const uniqueFileName = `${Date.now()}_${uuidv4()}_${fileName}`;
+      const filePath = `${folderPath}/${uniqueFileName}`;
+      const file = this.bucket.file(filePath);
 
-    // Set expiration time
-    const expiration = Date.now() + expirationMinutes * 60 * 1000;
+      // Set expiration time
+      const expiration = Date.now() + expirationMinutes * 60 * 1000;
 
-    // Generate signed URL for uploading
-    const [url] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: expiration,
-      contentType,
-    });
+      // Generate signed URL for uploading
+      const [url] = await file.generateSignedPostPolicyV4({
+        expires: expiration,
+        conditions: [
+          ['content-type', contentType],
+          ['content-length-range', 0, 10 * 1024 * 1024], // 10MB max
+        ],
+        fields: {
+          'content-type': contentType,
+        },
+      });
 
-    return {url, filePath};
+      return {
+        url: url.url,
+        filePath,
+        fields: url.fields,
+      };
+    } catch (error) {
+      console.error('Error generating upload URL:', error);
+      throw error;
+    }
   }
 
   /**
    * Generates a signed URL for downloading a file from Firebase Storage.
    * @param {string} filePath - The path to the file in storage.
    * @param {number} expirationMinutes - URL expiration time in minutes.
-   * @return {Promise<string>} - The signed URL for downloading.
+   * @return {Promise<string>} - The signed URL.
    */
   async generateDownloadUrl(
     filePath: string,
     expirationMinutes = 60
   ): Promise<string> {
-    const file = this.bucket.file(filePath);
+    try {
+      const file = this.bucket.file(filePath);
+      const expiration = Date.now() + expirationMinutes * 60 * 1000;
 
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      throw new Error(`File ${filePath} does not exist`);
+      const [url] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: expiration,
+      });
+
+      return url;
+    } catch (error) {
+      console.error('Error generating download URL:', error);
+      throw error;
     }
-
-    // Set expiration time
-    const expiration = Date.now() + expirationMinutes * 60 * 1000;
-
-    // Generate signed URL for downloading
-    const [url] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: expiration,
-    });
-
-    return url;
   }
 
   /**
@@ -87,16 +100,13 @@ export class StorageService {
    * @return {Promise<void>}
    */
   async deleteFile(filePath: string): Promise<void> {
-    const file = this.bucket.file(filePath);
-
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      throw new Error(`File ${filePath} does not exist`);
+    try {
+      const file = this.bucket.file(filePath);
+      await file.delete();
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      throw error;
     }
-
-    // Delete the file
-    await file.delete();
   }
 
   /**

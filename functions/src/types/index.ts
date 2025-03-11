@@ -19,7 +19,19 @@ export type ItemCategory =
   'Packaging' |
   'Other';
 
-export type ItemUnit = 'kg' | 'g' | 'l' | 'ml' | 'units';
+export type ItemUnit =
+  // Weight units
+  'mg' | 'g' | 'kg' |
+  // Volume units
+  'ml' | 'l' |
+  // Count units
+  'units' | 'pieces' | 'servings';
+
+export interface UnitConversion {
+  fromUnit: ItemUnit;
+  toUnit: ItemUnit;
+  rate: number; // How many of toUnit equals 1 of fromUnit
+}
 
 export interface Supplier {
   id: string;
@@ -55,6 +67,7 @@ export interface InventoryItem {
   minimumQuantity: number;
   currentQuantity: number;
   unit: ItemUnit;
+  conversions?: UnitConversion[]; // List of possible conversions for this item
   lastUpdated: string;
   updateFrequency: UpdateFrequency;
   averageConsumption: {
@@ -188,6 +201,7 @@ export interface Recipe {
   id: string;
   name: string;
   type: RecipeType;
+  instructions: string;
   ingredients: RecipeIngredient[];
   quantityProduced: {
     value: number;
@@ -195,6 +209,9 @@ export interface Recipe {
   };
   createdAt: string;
   updatedAt: string;
+  estimatedCost: number;
+  imagePath?: string;
+  imageUrl?: string;
 }
 
 export type NewRecipe = Omit<

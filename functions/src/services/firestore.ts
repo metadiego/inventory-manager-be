@@ -547,4 +547,15 @@ export class FirestoreService {
       throw error;
     }
   }
+
+  /**
+   * Updates a recipe in Firestore
+   * @param {Recipe} recipeData - The recipe data to update
+   * @return {Promise<Recipe>} The updated recipe with generated id
+   */
+  async updateRecipeDoc(recipeData: Recipe): Promise<void> {
+    await this.db.collection('recipes').doc(recipeData.id).update({
+      ...recipeData,
+    });
+  }
 }

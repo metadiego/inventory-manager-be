@@ -12,6 +12,7 @@ import {
   NewOrder,
   OrderEmail,
   NewRecipe,
+  Recipe,
 } from './types';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { OrdersService } from './services/orders';
@@ -27,7 +28,7 @@ import { subHours, formatISO } from 'date-fns';
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.applicationDefault(),
-    storageBucket: 'inventory-manager-be.appspot.com',
+    storageBucket: 'inventory-manager-be.firebasestorage.app',
   });
 }
 
@@ -583,6 +584,24 @@ export const getRecipe = onCall(async (request) => {
     throw new Error(httpsError.message);
   }
 });
+
+export const updateRecipe = onCall(async (request) => {
+  try {
+    const recipeData = request.data as Recipe;
+
+    // Validate the input
+    if (!recipeData.id) {
+      throw new Error('Recipe ID is required');
+    }
+
+    const recipe = await firestoreService.updateRecipeDoc(recipeData);
+    return { success: true, data: recipe };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
 
 /** **************************************************************************
  * STORAGE functions.
