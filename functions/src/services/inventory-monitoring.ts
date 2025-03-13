@@ -36,12 +36,36 @@ export class InventoryMonitoringService {
 
   /**
    * Checks for outdated inventory items and sends an email if any are found
+   * @param {string} restaurantId - The restaurant ID
    * @return {Promise<void>}
    */
   async checkOutdatedItems(): Promise<void> {
     try {
+      const restaurants = await this.firestoreService.getAllRestaurants();
+
+      const promises = [];
+      for (const restaurant of restaurants) {
+        promises.push(this.checkOutdatedItemsForRestaurant(restaurant.id));
+      }
+
+      await Promise.allSettled(promises);
+    } catch (error) {
+      console.error('Error checking outdated items:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Checks for outdated inventory items and sends an email if any are found
+   * @param {string} restaurantId - The restaurant ID
+   * @return {Promise<void>}
+   */
+  async checkOutdatedItemsForRestaurant(restaurantId: string): Promise<void> {
+    try {
       // Get all inventory items
-      const items = await this.firestoreService.getAllInventoryDocs();
+      const items = await this.firestoreService.getAllInventoryDocs(
+        restaurantId
+      );
 
       // Filter out items that have not been updated or have no
       // update frequency.

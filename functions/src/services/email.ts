@@ -1,4 +1,4 @@
-import { EmailData, Order, OrderItem, Supplier } from '../types';
+import { EmailData, Order, OrderItem, Restaurant, Supplier } from '../types';
 import { FirestoreService } from './firestore';
 
 /**
@@ -16,12 +16,16 @@ export class EmailService {
 
   /**
    * Generates the email content for an order
+   * @param {Restaurant} restaurant - The restaurant details
    * @param {Order} order - The order details to include in the email
    * @param {Supplier} supplier - The supplier information for the order
    * @return {Promise<{subject: string, html: string}>} The subject and HTML.
    */
-  async generateOrderEmailContent(order: Order, supplier: Supplier):
-    Promise<{subject: string, html: string}> {
+  async generateOrderEmailContent(
+    restaurant: Restaurant,
+    order: Order,
+    supplier: Supplier
+  ): Promise<{ subject: string, html: string }> {
     const itemsList = order.items
       .map((item: OrderItem) => `
         <tr>
@@ -52,7 +56,7 @@ export class EmailService {
       </span><br>
       <span><b>Hora de entrega:</b> a partir de las 12:15 AM.</span><br>
       <span><b>
-        Dirección:</b> The Window. Plaza San Ildefonso 3, 28004. Madrid.
+        Dirección:</b> ${restaurant.address}
       </span><br>
       <span><b>Contacto:</b> Diego Olalde +34 635 235 632</span><br>
 
@@ -69,7 +73,7 @@ export class EmailService {
 
     return {
       subject:
-        `The Window - Pedido - 
+        `${restaurant.name} - Pedido - 
         ${supplier.name} - 
         ${new Date().toLocaleDateString('en-GB')} - 
         ${order.id}
@@ -100,13 +104,19 @@ export class EmailService {
 
   /**
    * Creates an email document for a specific order
+   * @param {Restaurant} restaurant - The restaurant details
    * @param {Order} order - The order details
    * @return {Promise<string>} The ID of the created email document
    * @throws {Error} If the supplier does not have a valid email contact method
    */
-  async createOrderEmail(order: Order): Promise<string> {
-    const supplier =
-      await this.firestoreService.getSupplierDoc(order.supplierId);
+  async createOrderEmail(
+    restaurant: Restaurant,
+    order: Order
+  ): Promise<string> {
+    const supplier = await this.firestoreService.getSupplierDoc(
+      order.restaurantId,
+      order.supplierId
+    );
     if (!supplier || !supplier.contactMethod ||
       supplier.contactMethod.type !== 'email' ||
       !supplier.contactMethod.emails?.length) {
@@ -116,7 +126,9 @@ export class EmailService {
     const emailData = {
       to: 'diegoolalde@gmail.com',
       cc: ['diegoolalde@gmail.com', 'lucia_88@live.com'],
-      message: await this.generateOrderEmailContent(order, supplier),
+      message: await this.generateOrderEmailContent(
+        restaurant, order, supplier
+      ),
       orderId: order.id,
     };
 

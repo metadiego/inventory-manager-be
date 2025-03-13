@@ -20,12 +20,25 @@ export class OrdersService {
 
   /**
    * Sends an order using the supplier's preferred communication method
+   * @param {string} restaurantId - The ID of the restaurant
    * @param {string} orderId - The ID of the order to send
    * @return {Promise<void>}
    * @throws {Error} If order not found, already sent, or supplier not found
    */
-  async sendOrder(orderId: string): Promise<void> {
-    const order = await this.firestoreService.getOrderDoc(orderId);
+  async sendOrder(
+    restaurantId: string,
+    orderId: string
+  ): Promise<void> {
+    const restaurant = await this.firestoreService.getRestaurantDoc(
+      restaurantId
+    );
+    if (!restaurant) {
+      throw new Error('Restaurant not found');
+    }
+
+    const order = await this.firestoreService.getOrderDoc(
+      restaurantId, orderId
+    );
     if (!order) {
       throw new Error('Order not found');
     }
@@ -34,34 +47,44 @@ export class OrdersService {
       throw new Error('Only pending orders can be sent');
     }
 
-    const supplier =
-      await this.firestoreService.getSupplierDoc(order.supplierId);
+    const supplier = await this.firestoreService.getSupplierDoc(
+      restaurantId,
+      order.supplierId
+    );
     if (!supplier) {
       throw new Error('Supplier not found');
     }
 
     // Send order based on supplier's preferred contact method
     if (supplier.contactMethod?.type === 'email') {
-      await this.emailService.createOrderEmail(order);
+      await this.emailService.createOrderEmail(restaurant, order);
     } else {
       throw new Error('Invalid supplier contact method');
     }
 
-    await this.firestoreService.updateOrderDocStatus(orderId, 'sent');
+    await this.firestoreService.updateOrderDocStatus(
+      restaurantId,
+      orderId,
+      'sent'
+    );
   }
 
   /**
    * Records the delivery of an order and updates inventory quantities
+   * @param {string} restaurantId - The ID of the restaurant
    * @param {string} orderId - The ID of the order
    * @param {ReceivedItem[]} receivedItems - The items received in the delivery
    * @return {Promise<void>}
    * @throws {Error} If order not found or already delivered
    */
   async recordOrderDelivery(
+    restaurantId: string,
     orderId: string,
     receivedItems: ReceivedItem[],
   ): Promise<void> {
-    const order = await this.firestoreService.getOrderDoc(orderId);
+    const order = await this.firestoreService.getOrderDoc(
+      restaurantId, orderId
+    );
     if (!order) {
       throw new Error('Order not found');
     }
@@ -72,7 +95,7 @@ export class OrdersService {
 
     // Get the current inventory items
     const items: InventoryItem[] =
-      await this.firestoreService.getAllInventoryDocs();
+      await this.firestoreService.getAllInventoryDocs(restaurantId);
     const itemsById = items.reduce(
       (acc, item) => ({
         ...acc, [item.id]: item,
@@ -91,13 +114,18 @@ export class OrdersService {
     }));
 
     // Update the order with received quantities
-    await this.firestoreService.updateOrder(orderId, {
-      items: updatedItems,
-      status: 'delivered' as OrderStatus,
-    });
+    await this.firestoreService.updateOrder(
+      restaurantId,
+      orderId,
+      {
+        items: updatedItems,
+        status: 'delivered' as OrderStatus,
+      }
+    );
 
     // Update the inventory items with new quantities.
-    this.firestoreService.batchUpdateInventoryDocs(
+    await this.firestoreService.batchUpdateInventoryDocs(
+      restaurantId,
       receivedItems.map((item) => ({
         id: item.id,
         currentQuantity: itemsById[item.id].currentQuantity + item.quantity,
@@ -106,7 +134,8 @@ export class OrdersService {
     );
 
     // Add history records for each item in the order
-    this.firestoreService.batchAddInventoryHistoryDocs(
+    await this.firestoreService.batchAddInventoryHistoryDocs(
+      restaurantId,
       receivedItems.map((item) => ({
         itemId: item.id,
         record: {

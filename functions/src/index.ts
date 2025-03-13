@@ -56,8 +56,12 @@ const inventoryMonitoringService = new InventoryMonitoringService(
  */
 export const getInventoryItem = onCall(async (request) => {
   try {
-    const { itemId } = request.data;
-    const item = await firestoreService.getInventoryDoc(itemId);
+    const { restaurantId, itemId } = request.data;
+
+    const item = await firestoreService.getInventoryDoc(
+      restaurantId,
+      itemId
+    );
     return { success: true, data: item };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -67,12 +71,16 @@ export const getInventoryItem = onCall(async (request) => {
 
 export const getItemHistory = onCall(async (request) => {
   try {
-    const { itemId } = request.data;
+    const { restaurantId, itemId } = request.data;
+
     if (!itemId) {
       throw new Error('Item ID is required');
     }
 
-    const history = await firestoreService.getInventoryDocHistory(itemId);
+    const history = await firestoreService.getInventoryDocHistory(
+      restaurantId,
+      itemId
+    );
     return { success: true, data: history };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -85,8 +93,12 @@ export const getItemHistory = onCall(async (request) => {
  */
 export const addInventoryItem = onCall(async (request) => {
   try {
-    const item = request.data as Omit<InventoryItem, 'id'>;
-    const newItem = await firestoreService.addInventoryDoc(item);
+    const { restaurantId, item } = request.data;
+
+    const newItem = await firestoreService.addInventoryDoc(
+      restaurantId,
+      item as Omit<InventoryItem, 'id'>
+    );
     return { success: true, data: newItem };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -99,8 +111,9 @@ export const addInventoryItem = onCall(async (request) => {
  */
 export const removeInventoryItem = onCall(async (request) => {
   try {
-    const { id } = request.data;
-    await firestoreService.removeInventoryDoc(id);
+    const { restaurantId, id } = request.data;
+
+    await firestoreService.removeInventoryDoc(restaurantId, id);
     return { success: true, data: { id } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -113,8 +126,9 @@ export const removeInventoryItem = onCall(async (request) => {
  */
 export const updateInventoryItem = onCall(async (request) => {
   try {
-    const { id, updateData } = request.data;
-    await firestoreService.updateInventoryDoc(id, updateData);
+    const { restaurantId, id, updateData } = request.data;
+
+    await firestoreService.updateInventoryDoc(restaurantId, id, updateData);
     return { success: true, data: { id } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -125,9 +139,11 @@ export const updateInventoryItem = onCall(async (request) => {
 /**
  * HTTP function to get all inventory items.
  */
-export const getInventory = onCall(async () => {
+export const getInventory = onCall(async (request) => {
   try {
-    const items = await firestoreService.getAllInventoryDocs();
+    const { restaurantId } = request.data;
+
+    const items = await firestoreService.getAllInventoryDocs(restaurantId);
     return { success: true, data: items };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -140,18 +156,21 @@ export const getInventory = onCall(async () => {
  */
 export const takeInventory = onCall(async (request) => {
   try {
+    const { restaurantId, items } = request.data;
+
     const takeInventoryData: Omit<TakeInventory, 'id'> = {
       timestamp: new Date().toISOString(),
-      items: request.data.items,
+      items,
     };
 
     const newTakeInventory = await firestoreService.addTakeInventoryDoc(
+      restaurantId,
       takeInventoryData
     );
 
     // Update current quantities using the correct item ID
     for (const item of takeInventoryData.items) {
-      await firestoreService.updateInventoryDoc(item.id, {
+      await firestoreService.updateInventoryDoc(restaurantId, item.id, {
         currentQuantity: item.quantity,
         lastUpdated: takeInventoryData.timestamp,
       });
@@ -167,9 +186,13 @@ export const takeInventory = onCall(async (request) => {
 /**
  * HTTP function to get all inventory history.
  */
-export const getInventoryHistory = onCall(async () => {
+export const getInventoryHistory = onCall(async (request) => {
   try {
-    const history = await firestoreService.getAllTakeInventoryDocs();
+    const { restaurantId } = request.data;
+
+    const history = await firestoreService.getAllTakeInventoryDocs(
+      restaurantId
+    );
     return { success: true, data: history };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -200,8 +223,11 @@ export const checkInventory = onCall(async () => {
  */
 export const getSupplier = onCall(async (request) => {
   try {
-    const { supplierId } = request.data;
-    const supplier = await firestoreService.getSupplierDoc(supplierId);
+    const { restaurantId, supplierId } = request.data;
+
+    const supplier = await firestoreService.getSupplierDoc(
+      restaurantId, supplierId
+    );
     return { success: true, data: supplier };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -212,9 +238,11 @@ export const getSupplier = onCall(async (request) => {
 /**
  * HTTP function to get all suppliers.
  */
-export const getSuppliers = onCall(async () => {
+export const getSuppliers = onCall(async (request) => {
   try {
-    const suppliers = await firestoreService.getAllSupplierDocs();
+    const { restaurantId } = request.data;
+
+    const suppliers = await firestoreService.getAllSupplierDocs(restaurantId);
     return { success: true, data: suppliers };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -227,6 +255,7 @@ export const getSuppliers = onCall(async () => {
  */
 export const addSupplier = onCall(async (request) => {
   try {
+    const { restaurantId } = request.data;
     const supplierData = request.data as NewSupplier;
 
     // Validate the input
@@ -261,7 +290,10 @@ export const addSupplier = onCall(async (request) => {
       }
     }
 
-    const newSupplier = await firestoreService.addSupplierDoc(supplierData);
+    const newSupplier = await firestoreService.addSupplierDoc(
+      restaurantId,
+      supplierData
+    );
     return { success: true, data: newSupplier };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -273,18 +305,18 @@ export const addSupplier = onCall(async (request) => {
  * ORDERS functions.
  *************************************************************************** */
 
-
 /**
  * HTTP function to get a single order by id.
  */
 export const getOrder = onCall(async (request) => {
   try {
-    const { orderId } = request.data;
+    const { restaurantId, orderId } = request.data;
+
     if (!orderId) {
       throw new Error('Order ID is required');
     }
 
-    const order = await firestoreService.getOrderDoc(orderId);
+    const order = await firestoreService.getOrderDoc(restaurantId, orderId);
     if (!order) {
       throw new Error('Order not found');
     }
@@ -299,9 +331,11 @@ export const getOrder = onCall(async (request) => {
 /**
  * HTTP function to get all orders.
  */
-export const getOrders = onCall(async () => {
+export const getOrders = onCall(async (request) => {
   try {
-    const orders = await firestoreService.getAllOrderDocs();
+    const { restaurantId } = request.data;
+
+    const orders = await firestoreService.getAllOrderDocs(restaurantId);
     return { success: true, data: orders };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -314,8 +348,12 @@ export const getOrders = onCall(async () => {
  */
 export const getOrdersByStatus = onCall(async (request) => {
   try {
-    const { orderStatus } = request.data;
-    const orders = await firestoreService.getOrderDocsByStatus(orderStatus);
+    const { restaurantId, orderStatus } = request.data;
+
+    const orders = await firestoreService.getOrderDocsByStatus(
+      restaurantId,
+      orderStatus
+    );
     return { success: true, data: orders };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -328,8 +366,12 @@ export const getOrdersByStatus = onCall(async (request) => {
  */
 export const getOrdersByItemId = onCall(async (request) => {
   try {
-    const { itemId } = request.data;
-    const orders = await firestoreService.getOrderDocsByItemId(itemId);
+    const { restaurantId, itemId } = request.data;
+
+    const orders = await firestoreService.getOrderDocsByItemId(
+      restaurantId,
+      itemId
+    );
     return { success: true, data: orders };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -342,8 +384,8 @@ export const getOrdersByItemId = onCall(async (request) => {
  */
 export const createOrder = onCall(async (request) => {
   try {
+    const { restaurantId } = request.data;
     const orderData = request.data as NewOrder;
-
     // Validate the input
     if (!orderData.supplierId || !orderData.supplierName) {
       throw new Error('Supplier information is required');
@@ -357,7 +399,10 @@ export const createOrder = onCall(async (request) => {
       throw new Error('Expected delivery date is required');
     }
 
-    const order = await firestoreService.addOrderDoc(orderData);
+    const order = await firestoreService.addOrderDoc(
+      restaurantId,
+      orderData
+    );
     return { success: true, data: order };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -370,8 +415,9 @@ export const createOrder = onCall(async (request) => {
  */
 export const cancelOrder = onCall(async (request) => {
   try {
-    const { orderId } = request.data;
-    await firestoreService.cancelOrder(orderId);
+    const { restaurantId, orderId } = request.data;
+
+    await firestoreService.cancelOrder(restaurantId, orderId);
     return { success: true, data: { id: orderId } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -384,12 +430,13 @@ export const cancelOrder = onCall(async (request) => {
  */
 export const sendOrder = onCall(async (request) => {
   try {
-    const { orderId } = request.data;
+    const { restaurantId, orderId } = request.data;
+
     if (!orderId) {
       throw new Error('Order ID is required');
     }
 
-    await ordersService.sendOrder(orderId);
+    await ordersService.sendOrder(restaurantId, orderId);
     return { success: true, data: { id: orderId } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -402,7 +449,7 @@ export const sendOrder = onCall(async (request) => {
  */
 export const updateOrderStatus = onCall(async (request) => {
   try {
-    const { orderId, status } = request.data;
+    const { restaurantId, orderId, status } = request.data;
 
     // Order status can not be updated to 'delivered'
     // Delivery should be recorded using the recordOrderDelivery function.
@@ -410,7 +457,11 @@ export const updateOrderStatus = onCall(async (request) => {
       throw new Error('Order status can not be updated to delivered');
     }
 
-    await firestoreService.updateOrderDocStatus(orderId, status);
+    await firestoreService.updateOrderDocStatus(
+      restaurantId,
+      orderId,
+      status
+    );
     return { success: true, data: { id: orderId } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -423,8 +474,11 @@ export const updateOrderStatus = onCall(async (request) => {
  */
 export const recordOrderDelivery = onCall(async (request) => {
   try {
-    const { orderId, receivedItems } = request.data;
-    await ordersService.recordOrderDelivery(orderId, receivedItems);
+    const { restaurantId, orderId, receivedItems } = request.data;
+
+    await ordersService.recordOrderDelivery(
+      restaurantId, orderId, receivedItems
+    );
     return { success: true, data: { id: orderId } };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -448,11 +502,16 @@ export const recordOrderDelivery = onCall(async (request) => {
 export const onEmailDeliveryStatusUpdate = onDocumentWritten(
   'emails/{emailId}', async (event) => {
     try {
-      const email = await firestoreService.getEmail(event.params.emailId);
+      const email = await firestoreService.getEmail(
+        event.params.emailId
+      ) as OrderEmail;
       if (email?.delivery?.state === 'SUCCESS' &&
-        (email as OrderEmail).orderId) {
+        email?.restaurantId &&
+        email?.orderId) {
         await firestoreService.updateOrderDocStatus(
-          (email as OrderEmail).orderId, 'confirmed'
+          email.restaurantId,
+          email.orderId,
+          'confirmed'
         );
       }
     } catch (error) {
@@ -525,9 +584,11 @@ export const processSales = onCall(async () => {
  * RECIPES functions.
  *************************************************************************** */
 
-export const getRecipes = onCall(async () => {
+export const getRecipes = onCall(async (request) => {
   try {
-    const recipes = await firestoreService.getAllRecipeDocs();
+    const { restaurantId } = request.data;
+
+    const recipes = await firestoreService.getAllRecipeDocs(restaurantId);
     return { success: true, data: recipes };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -537,6 +598,7 @@ export const getRecipes = onCall(async () => {
 
 export const createRecipe = onCall(async (request) => {
   try {
+    const { restaurantId } = request.data;
     const recipeData = request.data as NewRecipe;
 
     // Validate the input
@@ -562,7 +624,9 @@ export const createRecipe = onCall(async (request) => {
       }
     }
 
-    const recipe = await firestoreService.addRecipeDoc(recipeData);
+    const recipe = await firestoreService.addRecipeDoc(
+      restaurantId, recipeData
+    );
     return { success: true, data: recipe };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -572,12 +636,13 @@ export const createRecipe = onCall(async (request) => {
 
 export const getRecipe = onCall(async (request) => {
   try {
-    const { id } = request.data;
+    const { restaurantId, id } = request.data;
+
     if (!id) {
       throw new Error('Recipe ID is required');
     }
 
-    const recipe = await firestoreService.getRecipeDoc(id);
+    const recipe = await firestoreService.getRecipeDoc(restaurantId, id);
     return { success: true, data: recipe };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -587,6 +652,7 @@ export const getRecipe = onCall(async (request) => {
 
 export const updateRecipe = onCall(async (request) => {
   try {
+    const { restaurantId } = request.data;
     const recipeData = request.data as Recipe;
 
     // Validate the input
@@ -594,7 +660,9 @@ export const updateRecipe = onCall(async (request) => {
       throw new Error('Recipe ID is required');
     }
 
-    const recipe = await firestoreService.updateRecipeDoc(recipeData);
+    const recipe = await firestoreService.updateRecipeDoc(
+      restaurantId, recipeData
+    );
     return { success: true, data: recipe };
   } catch (error) {
     const httpsError = errorHandler(error);
@@ -679,3 +747,114 @@ export const deleteImage = onCall(async (request) => {
     throw new Error(httpsError.message);
   }
 });
+
+/** **************************************************************************
+ * MIGRATION functions - no longer used.
+ *************************************************************************** */
+
+/**
+ * HTTP function to migrate all collections into a restaurant's subcollections.
+ * This function copies all data from the top-level collections into the
+ * specified restaurant document's subcollections.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// const migrateToRestaurant = onCall(async (request) => {
+//   try {
+//     const restaurantId = '0fMJ4D3W5JhE9q7Fh38j';
+//     if (!restaurantId) {
+//       throw new Error('Restaurant ID is required');
+//     }
+
+//     const db = admin.firestore();
+//     const batch = db.batch();
+
+//     // Create restaurant document if it doesn't exist
+//     const restaurantRef = db.collection('restaurants').doc(restaurantId);
+//     const restaurantDoc = await restaurantRef.get();
+//     if (!restaurantDoc.exists) {
+//       batch.set(restaurantRef, {
+//         createdAt: new Date().toISOString(),
+//         updatedAt: new Date().toISOString(),
+//       });
+//     }
+
+//     // Migrate inventory collection
+//     const inventorySnapshot = await db.collection('inventory').get();
+//     for (const doc of inventorySnapshot.docs) {
+//       const inventoryData = doc.data();
+//       const newInventoryRef = restaurantRef
+//         .collection('inventory')
+//         .doc(doc.id);
+//       batch.set(newInventoryRef, inventoryData);
+
+//       // Migrate inventory history subcollection
+//       const historySnapshot = await doc.ref.collection('history').get();
+//       for (const historyDoc of historySnapshot.docs) {
+//         const historyData = historyDoc.data();
+//         const newHistoryRef = newInventoryRef
+//           .collection('history')
+//           .doc(historyDoc.id);
+//         batch.set(newHistoryRef, historyData);
+//       }
+//     }
+
+//     console.log('MIGRATED INVENTORY');
+
+//     // Migrate orders collection
+//     const ordersSnapshot = await db.collection('orders').get();
+//     for (const doc of ordersSnapshot.docs) {
+//       const orderData = doc.data();
+//       const newOrderRef = restaurantRef
+//         .collection('orders')
+//         .doc(doc.id);
+//       batch.set(newOrderRef, orderData);
+//     }
+
+//     console.log('MIGRATED ORDERS');
+
+//     // Migrate suppliers collection
+//     const suppliersSnapshot = await db.collection('suppliers').get();
+//     console.log('suppliersSnapshot', suppliersSnapshot.size);
+//     for (const doc of suppliersSnapshot.docs) {
+//       const supplierData = doc.data();
+//       const newSupplierRef = restaurantRef
+//         .collection('suppliers')
+//         .doc(doc.id);
+//       batch.set(newSupplierRef, supplierData);
+//     }
+
+//     console.log('MIGRATED SUPPLIERS');
+
+//     // Migrate takeInventory collection
+//     const takeInventorySnapshot = await db.collection('takeInventory').get();
+//     console.log('takeInventorySnapshot', takeInventorySnapshot.size);
+//     for (const doc of takeInventorySnapshot.docs) {
+//       const takeInventoryData = doc.data();
+//       const newTakeInventoryRef = restaurantRef
+//         .collection('takeInventory')
+//         .doc(doc.id);
+//       batch.set(newTakeInventoryRef, takeInventoryData);
+//     }
+
+//     console.log('MIGRATED TAKE INVENTORY');
+
+//     // Commit all changes
+//     await batch.commit();
+
+//     return {
+//       success: true,
+//       data: {
+//         message: 'Migration completed successfully',
+//         restaurantId,
+//         inventoryCount: inventorySnapshot.size,
+//         ordersCount: ordersSnapshot.size,
+//         suppliersCount: suppliersSnapshot.size,
+//         takeInventoryCount: takeInventorySnapshot.size,
+//       },
+//     };
+//   } catch (error) {
+//     console.error('Error in migrateToRestaurant:', error);
+//     const httpsError = errorHandler(error);
+//     throw new Error(httpsError.message);
+//   }
+// });

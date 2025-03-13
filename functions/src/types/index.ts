@@ -33,8 +33,20 @@ export interface UnitConversion {
   rate: number; // How many of toUnit equals 1 of fromUnit
 }
 
+export interface Restaurant {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  logoUrl: string;
+  websiteUrl: string;
+  billingAddress: string;
+}
+
 export interface Supplier {
   id: string;
+  restaurantId: string;
   name: string;
   daysOfDelivery: {
     monday: boolean;
@@ -60,6 +72,7 @@ export type UpdateFrequency = 'daily' | 'weekly' | 'monthly';
 
 export interface InventoryItem {
   id: string;
+  restaurantId: string;
   name: string;
   type: ItemType;
   category: ItemCategory;
@@ -121,6 +134,7 @@ export type OrderStatus =
 
 export interface Order {
   id: string
+  restaurantId: string
   supplierId: string
   supplierName: string
   items: OrderItem[]
@@ -157,6 +171,7 @@ export interface EmailData {
 }
 
 export interface OrderEmail extends EmailData {
+  restaurantId: string;
   orderId: string;
 }
 
@@ -199,6 +214,7 @@ export interface RecipeIngredient {
 
 export interface Recipe {
   id: string;
+  restaurantId: string;
   name: string;
   type: RecipeType;
   instructions: string;
