@@ -256,7 +256,7 @@ export const getSuppliers = onCall(async (request) => {
 export const addSupplier = onCall(async (request) => {
   try {
     const { restaurantId } = request.data;
-    const supplierData = request.data as NewSupplier;
+    const supplierData = request.data.supplier as NewSupplier;
 
     // Validate the input
     if (!supplierData.name || supplierData.name.trim() === '') {
@@ -385,7 +385,8 @@ export const getOrdersByItemId = onCall(async (request) => {
 export const createOrder = onCall(async (request) => {
   try {
     const { restaurantId } = request.data;
-    const orderData = request.data as NewOrder;
+    const orderData = request.data.order as NewOrder;
+
     // Validate the input
     if (!orderData.supplierId || !orderData.supplierName) {
       throw new Error('Supplier information is required');
@@ -599,7 +600,7 @@ export const getRecipes = onCall(async (request) => {
 export const createRecipe = onCall(async (request) => {
   try {
     const { restaurantId } = request.data;
-    const recipeData = request.data as NewRecipe;
+    const recipeData = request.data.recipe as NewRecipe;
 
     // Validate the input
     if (!recipeData.name || recipeData.name.trim() === '') {

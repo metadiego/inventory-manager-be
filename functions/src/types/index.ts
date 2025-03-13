@@ -88,7 +88,7 @@ export interface InventoryItem {
     weekly: number;
     monthly: number;
   };
-  cost?: number; // Cost per unit
+  currentCost?: number; // Cost per unit
 }
 
 export interface ReceivedItem {

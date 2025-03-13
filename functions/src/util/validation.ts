@@ -87,7 +87,7 @@ export class Validation {
       throw new Error('Current quantity cannot be undefined or negative');
     }
 
-    if (item.cost === undefined || item.cost < 0) {
+    if (item.currentCost === undefined || item.currentCost < 0) {
       throw new Error('Cost cannot be negative or undefined');
     }
 
@@ -152,7 +152,7 @@ export class Validation {
       throw new Error('Current quantity cannot be negative');
     }
 
-    if (item.cost !== undefined && item.cost < 0) {
+    if (item.currentCost !== undefined && item.currentCost < 0) {
       throw new Error('Cost cannot be negative');
     }
 
@@ -435,10 +435,10 @@ export class Validation {
     }
 
     if (order?.expectedDelivery) {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      const isValidDate = dateRegex.test(order.expectedDelivery);
-      if (!isValidDate) {
-        throw new Error('Invalid expected delivery date format');
+      if (
+        typeof order.expectedDelivery !== 'string' ||
+        isNaN(Date.parse(order.expectedDelivery))) {
+        throw new Error('Expected delivery date must be a valid date string');
       }
     }
   }
