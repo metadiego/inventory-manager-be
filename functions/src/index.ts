@@ -48,6 +48,42 @@ const inventoryMonitoringService = new InventoryMonitoringService(
 );
 
 /** **************************************************************************
+ * RESTAURANT functions.
+  *************************************************************************** */
+
+/**
+ * HTTP function to get all restaurants for a user.
+ */
+export const getUserRestaurants = onCall(async () => {
+  try {
+    const restaurants = await firestoreService.getAllRestaurants();
+    return { success: true, data: restaurants };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/**
+ * HTTP function to get a single restaurant by ID.
+ */
+export const getRestaurant = onCall(async (request) => {
+  try {
+    const { restaurantId } = request.data;
+
+    if (!restaurantId) {
+      throw new Error('Restaurant ID is required');
+    }
+
+    const restaurant = await firestoreService.getRestaurantDoc(restaurantId);
+    return { success: true, data: restaurant };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
+
+/** **************************************************************************
  * INVENTORY functions.
  *************************************************************************** */
 
