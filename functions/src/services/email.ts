@@ -56,15 +56,15 @@ export class EmailService {
       </span><br>
       <span><b>Hora de entrega:</b> a partir de las 12:15 AM.</span><br>
       <span><b>
-        Dirección:</b> ${restaurant.address}
+        Dirección:</b> ${restaurant.deliveryAddress}
       </span><br>
       <span><b>Contacto:</b> Diego Olalde +34 635 235 632</span><br>
 
       <h3><u>Datos de Facturación:</u></h3>
-      <span><b>CIF:</b> B56514680</span><br>
-      <span><b>Razón Social:</b> The Window Foods SL</span><br>
+      <span><b>CIF:</b> ${restaurant.billing.cif}</span><br>
+      <span><b>Razón Social:</b> ${restaurant.billing.companyName}</span><br>
       <span><b>Domicilio Fiscal:</b> 
-        Calle Principe de Vergara 11, Apt. 4C. Madrid, 28001
+        ${restaurant.billing.address}
       </span><br>
 
       <p>Gracias y saludos!</p>

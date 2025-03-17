@@ -36,12 +36,16 @@ export interface UnitConversion {
 export interface Restaurant {
   id: string;
   name: string;
-  address: string;
+  deliveryAddress: string;
   phone: string;
   email: string;
   logoUrl: string;
   websiteUrl: string;
-  billingAddress: string;
+  billing: {
+    address: string;
+    cif: string;
+    companyName: string;
+  }
 }
 
 export interface Supplier {
@@ -204,12 +208,15 @@ export interface Sale {
 
 export type RecipeType = 'dish' | 'preparation';
 
+export type IngredientType = 'Recipe' | 'InventoryItem';
+
 export interface RecipeIngredient {
   id: string;
   name: string;
   quantity: number;
   unit: string;
   currentCost: number;
+  ingredientType: IngredientType;
 }
 
 export interface Recipe {

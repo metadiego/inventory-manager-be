@@ -569,6 +569,10 @@ export class Validation {
         if (ingredient?.currentCost < 0) {
           throw new Error('Ingredient cost cannot be negative');
         }
+        if (!ingredient?.ingredientType ||
+            !['Recipe', 'InventoryItem'].includes(ingredient.ingredientType)) {
+          throw new Error('Invalid ingredient type');
+        }
       }
     }
 
@@ -633,6 +637,10 @@ export class Validation {
         if (!ingredient?.unit) throw new Error('Ingredient unit is required');
         if (ingredient?.currentCost < 0) {
           throw new Error('Ingredient cost cannot be negative');
+        }
+        if (!ingredient?.ingredientType ||
+            !['Recipe', 'InventoryItem'].includes(ingredient.ingredientType)) {
+          throw new Error('Invalid ingredient type');
         }
       }
     }
