@@ -538,7 +538,7 @@ export class Validation {
       throw new Error('Restaurant ID mismatch');
     }
 
-    if (typeof recipe?.name !== 'string') {
+    if (typeof recipe?.name !== 'string' || recipe?.name.trim() === '') {
       throw new Error('Name must be a string');
     }
 
@@ -553,10 +553,6 @@ export class Validation {
     if (recipe?.ingredients) {
       if (!Array.isArray(recipe?.ingredients)) {
         throw new Error('Ingredients must be an array');
-      }
-
-      if (recipe?.ingredients?.length === 0) {
-        throw new Error('Ingredients array cannot be empty');
       }
 
       for (const ingredient of recipe.ingredients) {
@@ -622,10 +618,6 @@ export class Validation {
     if (recipe?.ingredients) {
       if (!Array.isArray(recipe?.ingredients)) {
         throw new Error('Ingredients must be an array');
-      }
-
-      if (recipe?.ingredients?.length === 0) {
-        throw new Error('Ingredients array cannot be empty');
       }
 
       for (const ingredient of recipe.ingredients) {

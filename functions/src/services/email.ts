@@ -124,8 +124,14 @@ export class EmailService {
     }
 
     const emailData = {
-      to: 'diegoolalde@gmail.com',
-      cc: ['diegoolalde@gmail.com', 'lucia_88@live.com'],
+      to: supplier.contactMethod.emails[0],
+      cc: [
+        'diegoolalde@gmail.com',
+        'lucia_88@live.com',
+        ...(supplier.contactMethod.emails.length > 1 ?
+          supplier.contactMethod.emails.slice(1) :
+          []),
+      ],
       message: await this.generateOrderEmailContent(
         restaurant, order, supplier
       ),

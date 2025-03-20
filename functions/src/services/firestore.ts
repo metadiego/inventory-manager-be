@@ -773,6 +773,17 @@ export class FirestoreService {
   }
 
   /**
+   * Deletes a recipe in Firestore
+   * @param {string} restaurantId - The id of the restaurant
+   * @param {string} recipeId - The id of the recipe to delete
+   * @return {Promise<void>}
+   */
+  async deleteRecipeDoc(restaurantId: string, recipeId: string): Promise<void> {
+    await this.getRestaurantRef(restaurantId)
+      .collection('recipes').doc(recipeId).delete();
+  }
+
+  /**
    * Creates a new sale record in Firestore
    * @param {Sale} sale - The sale data to create, including itemName, orderId,
    * orderDate, quantity, price and grossSales

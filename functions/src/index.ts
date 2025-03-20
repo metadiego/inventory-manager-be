@@ -638,29 +638,6 @@ export const createRecipe = onCall(async (request) => {
     const { restaurantId } = request.data;
     const recipeData = request.data.recipe as NewRecipe;
 
-    // Validate the input
-    if (!recipeData.name || recipeData.name.trim() === '') {
-      throw new Error('Recipe name is required');
-    }
-
-    if (!recipeData.type) {
-      throw new Error('Recipe type is required');
-    }
-
-    if (!recipeData.ingredients || recipeData.ingredients.length === 0) {
-      throw new Error('Recipe must have at least one ingredient');
-    }
-
-    // Validate each ingredient
-    for (const ingredient of recipeData.ingredients) {
-      if (!ingredient.id) {
-        throw new Error('Each ingredient must have an ID');
-      }
-      if (ingredient.quantity <= 0) {
-        throw new Error('Ingredient quantities must be greater than 0');
-      }
-    }
-
     const recipe = await firestoreService.addRecipeDoc(
       restaurantId, recipeData
     );
@@ -690,12 +667,14 @@ export const getRecipe = onCall(async (request) => {
 export const updateRecipe = onCall(async (request) => {
   try {
     const { restaurantId } = request.data;
-    const recipeData = request.data as Recipe;
+    const recipeData = request.data.recipe as Recipe;
 
-    // Validate the input
-    if (!recipeData.id) {
-      throw new Error('Recipe ID is required');
+    if (!recipeData || !restaurantId) {
+      throw new Error('Missing required parameters: recipe and restaurantId');
     }
+
+    console.log('Restaurant ID:', restaurantId);
+    console.log('Updating recipe:', recipeData);
 
     const recipe = await firestoreService.updateRecipeDoc(
       restaurantId, recipeData
@@ -707,6 +686,21 @@ export const updateRecipe = onCall(async (request) => {
   }
 });
 
+export const deleteRecipe = onCall(async (request) => {
+  try {
+    const { restaurantId, id } = request.data;
+
+    if (!id) {
+      throw new Error('Recipe ID is required');
+    }
+
+    await firestoreService.deleteRecipeDoc(restaurantId, id);
+    return { success: true, data: { id } };
+  } catch (error) {
+    const httpsError = errorHandler(error);
+    throw new Error(httpsError.message);
+  }
+});
 
 /** **************************************************************************
  * STORAGE functions.
